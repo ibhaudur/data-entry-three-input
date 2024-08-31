@@ -1,0 +1,147 @@
+import React, { useEffect, useRef, useState } from "react";
+
+const TextAreas = () => {
+  const [caretLine, setCaretLine] = useState({ line: 1, index: 10 });
+  const textareasRef = useRef([]);
+  const mirrorsRef = useRef([]);
+
+  useEffect(() => {
+    // Initial setup to match content in mirror and textarea
+    textareasRef.current.forEach((textarea, index) => {
+      if (textarea) {
+        updateMirrorContent(index);
+      }
+    });
+  }, []);
+
+  const updateMirrorContent = (index) => {
+    const textarea = textareasRef.current[index];
+    const mirror = mirrorsRef.current[index];
+
+    if (textarea && mirror) {
+      const computedStyle = window.getComputedStyle(textarea);
+      mirror.style.fontFamily = computedStyle.fontFamily;
+      mirror.style.fontSize = computedStyle.fontSize;
+      mirror.style.lineHeight = computedStyle.lineHeight;
+      mirror.style.padding = computedStyle.padding;
+      mirror.style.width = `${textarea.clientWidth}px`;
+
+      // Update mirror content to match textarea
+      const caretPosition = textarea.selectionStart;
+      const textBeforeCaret = textarea.value.substring(0, caretPosition);
+      mirror.textContent = textBeforeCaret;
+
+      const caretSpan = document.createElement("span");
+      caretSpan.textContent = " "; // Space to simulate caret width
+      mirror.appendChild(caretSpan);
+
+      const caretRect = caretSpan.getBoundingClientRect();
+      const mirrorRect = mirror.getBoundingClientRect();
+      const caretTopOffset = caretRect.top - mirrorRect.top;
+
+      const lineHeight =
+        computedStyle.lineHeight === "normal"
+          ? parseInt(computedStyle.fontSize) * 1.2
+          : parseFloat(computedStyle.lineHeight);
+
+      if (!isNaN(lineHeight) && lineHeight > 0) {
+        const visualLineNumber = Math.ceil((caretTopOffset + 1) / lineHeight);
+        setCaretLine({ line: visualLineNumber, index });
+      }
+
+      mirror.removeChild(caretSpan); // Clean up
+    }
+  };
+
+  const handleInputOrClick = (index) => {
+    updateMirrorContent(index);
+  };
+
+  const handleMouseDown = (event, index) => {
+    const textarea = textareasRef.current[index];
+
+    if (!textarea) return;
+
+    const { top } = textarea.getBoundingClientRect();
+    const y = event.clientY - top;
+
+    const computedStyle = window.getComputedStyle(textarea);
+    const lineHeight =
+      computedStyle.lineHeight === "normal"
+        ? parseInt(computedStyle.fontSize) * 1.2
+        : parseFloat(computedStyle.lineHeight);
+
+    if (!isNaN(lineHeight) && lineHeight > 0) {
+      const line = Math.floor(y / lineHeight);
+      setCaretLine({ line: line + 1, index });
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        width: "100vw",
+        marginTop: "20px",
+        top: 0,
+      }}
+    >
+      {[0, 1, 2].map((index) => (
+        <div
+          key={index}
+          style={{
+            flex: 1,
+            border: "1px solid lightgray",
+            position: "relative",
+          }}
+        >
+          <textarea
+            ref={(el) => (textareasRef.current[index] = el)}
+            style={{
+              width: "25px",
+              height: "300px",
+              padding: "5px",
+              outline: "none",
+              resize: "none",
+              border: "none",
+              fontSize: "15px",
+              borderRight: "1px dashed",
+              fontFamily: "monospace", // Ensures consistent character width
+              lineHeight: "15px", // Match this with the mirror line height
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+            }}
+            maxLength={57}
+            onInput={() => handleInputOrClick(index)}
+            onClick={() => handleInputOrClick(index)}
+            onMouseDown={(event) => handleMouseDown(event, index)}
+          />
+          <div
+            ref={(el) => (mirrorsRef.current[index] = el)}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: "-9999px",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+              visibility: "hidden",
+            }}
+          />
+        </div>
+      ))}
+      <div
+        style={{
+          position: "absolute",
+          bottom: `${300 - caretLine.line * 15}px`, // Adjust based on line height
+          left: 0,
+          width: "100%", // Common border across all textareas
+          borderBottom: "2px solid red",
+          transition: "bottom 0.3s",
+        }}
+      />
+    </div>
+  );
+};
+
+export default TextAreas;
